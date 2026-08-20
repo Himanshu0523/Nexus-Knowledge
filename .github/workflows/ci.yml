@@ -1,0 +1,59 @@
+name: Chatbot Platform CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: chatbot
+          POSTGRES_PASSWORD: chatbot_password
+          POSTGRES_DB: chatbot_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest httpx pytest-asyncio
+          if [ -f api-gateway/requirements.txt ]; then pip install -r api-gateway/requirements.txt; fi
+          if [ -f services/chat-service/requirements.txt ]; then pip install -r services/chat-service/requirements.txt; fi
+
+      - name: Run Security Tests
+        run: |
+          python test_security.py
+
+      - name: Build Docker Images
+        run: |
+          docker build -t chatbot/api-gateway:${{ github.sha }} -f api-gateway/Dockerfile api-gateway
+          docker build -t chatbot/chat-service:${{ github.sha }} -f services/chat-service/Dockerfile services/chat-service
+          docker build -t chatbot/audit-service:${{ github.sha }} -f services/audit-service/Dockerfile .
+          docker build -t chatbot/analytics-service:${{ github.sha }} -f services/analytics-service/Dockerfile .
+          docker build -t chatbot/moderation-service:${{ github.sha }} -f services/moderation-service/Dockerfile .

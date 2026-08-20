@@ -1,0 +1,19 @@
+{
+  "name": "@chatbot/sdk",
+  "version": "1.0.0",
+  "description": "Canonical Node.js / TypeScript SDK for Multi-Tenant AI Chatbot Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Node SDK tests\""
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/node-fetch": "^2.6.4"
+  }
+}
