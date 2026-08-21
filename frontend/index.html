@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise AI Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .view-section { display: none; flex: 1; flex-direction: column; }
+        .view-section.active { display: flex; }
+        
+        .content-padding { padding: 40px; overflow-y: auto; flex: 1; }
+        .card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+        .card h3 { margin-bottom: 16px; font-weight: 500; color: var(--accent-primary); }
+        
+        .data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .data-item { background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; }
+        
+        .btn-action { background: var(--accent-gradient); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .btn-action:hover { opacity: 0.9; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border-color); }
+        th { color: var(--text-secondary); font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+                <h1>Nexus Knowledge</h1>
+            </div>
+
+            <div class="control-group">
+                <label for="tenant">Active Tenant Environment</label>
+                <select id="tenant" class="input-field">
+                    <option value="tenant_production">Production Environment</option>
+                    <option value="tenant_development">Development Environment</option>
+                </select>
+            </div>
+
+            <div class="nav-section">
+                <div class="control-group" style="margin-bottom: 12px;">
+                    <label>Workspace</label>
+                </div>
+                <div class="nav-item active" id="btn-nav-chat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    New Chat Session
+                </div>
+                <div class="nav-item" id="btn-nav-tools">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    Agents & Tools
+                </div>
+                <div class="nav-item" id="btn-nav-data">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                    Data Integration
+                </div>
+            </div>
+
+            <div class="control-group" style="margin-top: auto;">
+                <label for="api-key">Security Key (JWT / API Key)</label>
+                <input type="password" id="api-key" class="input-field" placeholder="Enter API Key..." value="cb_live_admin_key_123" autocomplete="new-password">
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-area">
+            
+            <header class="header">
+                <div class="breadcrumb">
+                    <h2 id="view-title" style="font-weight: 500; font-size: 1.1rem; color: #fff;">Agent Workspace</h2>
+                </div>
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    System Operational
+                </div>
+            </header>
+
+            <!-- CHAT VIEW -->
+            <div id="view-chat" class="view-section active">
+                <div class="chat-thread" id="chat-thread">
+                    <div class="message-wrapper system">
+                        <div class="avatar system">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                        </div>
+                        <div class="message-bubble content-container">
+                            <p>Welcome to <strong>Nexus Knowledge Enterprise</strong>. I am fully secured and connected to the LLM Gateway.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <form class="input-box" id="msg-form">
+                        <textarea id="msg-input" placeholder="Ask Nexus Knowledge anything..." rows="1" autofocus></textarea>
+                        <button type="submit" class="btn-send">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TOOLS VIEW -->
+            <div id="view-tools" class="view-section content-padding">
+                <div class="card">
+                    <h3>Active Autonomous Agents & Tools</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">The following capabilities are currently loaded into the LLM context.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tool Name</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tools-table-body">
+                            <tr>
+                                <td colspan="3" style="text-align:center;">Loading tools from API...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- DATA INTEGRATION VIEW -->
+            <div id="view-data" class="view-section content-padding">
+                <div class="card">
+                    <h3>Document Ingestion (RAG)</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Upload documents to Qdrant Vector Database for retrieval-augmented generation.</p>
+                    
+                    <form id="upload-form" style="display: flex; gap: 16px; align-items: center;">
+                        <input type="file" id="file-upload" class="input-field" style="flex:1;" required>
+                        <button type="submit" class="btn-action">Upload to Vector DB</button>
+                    </form>
+                    <div id="upload-status" style="margin-top: 12px; font-size: 0.9rem;"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>Indexed Documents</h3>
+                    <div class="data-grid" id="documents-grid">
+                        <div style="color: var(--text-secondary);">Loading documents from API...</div>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

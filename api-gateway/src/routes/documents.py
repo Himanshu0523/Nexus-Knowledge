@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from typing import List
 import uuid
 import httpx
@@ -7,6 +7,37 @@ import os
 router = APIRouter()
 
 CHAT_SERVICE_URL = os.getenv("CHAT_SERVICE_URL", "http://localhost:8001")
+
+@router.get("/documents")
+async def get_documents(request: Request, tenant_id: str = "default"):
+    """List documents for a specific tenant"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{CHAT_SERVICE_URL}/api/v1/documents",
+                params={"tenant_id": tenant_id},
+                timeout=10.0
+            )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=response.json()
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": {
+                    "code": "FETCH_FAILED",
+                    "message": str(e)
+                }
+            }
+        )
+
+
 
 @router.post("/documents")
 async def upload_document(

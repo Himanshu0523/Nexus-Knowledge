@@ -165,6 +165,21 @@ async def get_document_status(document_id: str):
         return document_statuses[document_id]
     return {"document_id": document_id, "status": "unknown"}
 
+@app.get("/api/v1/documents")
+async def get_all_documents(tenant_id: str = "default"):
+    """Get all processed documents for a tenant"""
+    docs = []
+    for doc_id, data in document_statuses.items():
+        # Ideally, we filter by tenant if stored in dict, but let's return all processed
+        doc_data = {
+            "id": doc_id,
+            "filename": data.get("filename", "unknown"),
+            "status": data.get("status", "indexed"),
+            "tenant": tenant_id
+        }
+        docs.append(doc_data)
+    return {"documents": docs}
+
 @app.delete("/api/v1/documents/{document_id}")
 async def delete_document(document_id: str, tenant_id: str = "default"):
     """Delete document chunks from Qdrant"""

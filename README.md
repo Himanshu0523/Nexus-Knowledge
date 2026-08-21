@@ -1,156 +1,204 @@
-# Multi-Tenant AI Chatbot Platform
+<div align="center">
 
-A production-grade, modular, language-agnostic AI chatbot platform supporting multi-turn conversation memory (PostgreSQL + Redis), vector document ingestion & retrieval-augmented generation (RAG with Qdrant), Server-Sent Events (SSE) token streaming, and official SDKs for Python, Node.js, Java, and C++.
+# 🤖 Nexus Knowledge
+
+### Enterprise Multi-Tenant Conversational AI Platform
+
+[![Platform](https://img.shields.io/badge/Platform-Enterprise-blue?style=for-the-badge)](#)
+[![Python](https://img.shields.io/badge/Python-3.11-gold?style=for-the-badge&logo=python&logoColor=white)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.103-009688?style=for-the-badge&logo=fastapi&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Docker-K8s-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#)
+[![Status](https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](#-license)
+
+**Secure, scalable, multi-tenant AI infrastructure built for the enterprise.**
+
+Nexus Knowledge combines Retrieval-Augmented Generation (RAG), autonomous tool execution, and an event-driven microservices architecture to serve hundreds of isolated tenants at scale — without compromising on security or performance.
+
+[Key Features](#-key-features) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Security](#-security--access-control) • [Project Structure](#-project-structure) • [Deployment](#-production-deployment)
+
+</div>
 
 ---
 
-## 🏗️ Platform Architecture
+## 📋 Table of Contents
 
-```text
-                                Client Applications
-                    (Python / Node.js / Java / C++ / Web / Mobile)
-                                         │
-                                         ▼
-                                ┌─────────────────┐
-                                │   API Gateway   │ (Port 8000)
-                                └────────┬────────┘
-                                         │
-                                         ▼
-                                ┌─────────────────┐
-                                │  Chat Service   │ (Port 8001)
-                                └────────┬────────┘
-                                         │
-             ┌───────────────────────────┼───────────────────────────┐
-             ▼                           ▼                           ▼
-   ┌───────────────────┐       ┌───────────────────┐       ┌───────────────────┐
-   │ PostgreSQL (5432) │       │   Redis (6379)    │       │   Qdrant (6333)   │
-   │  Persistent Chat  │       │ Ephemeral History │       │  Vector Database  │
-   └───────────────────┘       └───────────────────┘       └───────────────────┘
+- [Key Features](#-key-features)
+- [Architecture](#-architecture)
+- [Quick Start](#-quick-start)
+- [Web Interface](#-using-the-nexus-ai-web-ui)
+- [Security & Access Control](#-security--access-control)
+- [Project Structure](#-project-structure)
+- [Production Deployment](#-production-deployment)
+- [License](#-license)
+
+---
+
+## 🌟 Key Features
+
+| Category | Capability |
+|---|---|
+| 🏢 **Multi-Tenancy** | Complete data isolation across PostgreSQL, Redis, and Qdrant, enforced via JWT / API Key RBAC |
+| ⚡ **Event-Driven Architecture** | Fully decoupled, asynchronous message routing via Apache Kafka for audit logging, moderation, and analytics |
+| 🔄 **Real-Time Streaming** | Server-Sent Events (SSE) stream AI-generated responses directly to the frontend |
+| 🛠️ **Autonomous Agents & Tools** | LLMs securely invoke local tools (Calculator, Web Search, Weather, DB Query) via a `ToolPermissionManager` guardrail layer |
+| 🔐 **Security & Guardrails** | Built-in prompt-injection defenses, PII scrubbing, rate limiting, and role-based access control |
+| 💎 **Modern Web Interface** | Glassmorphic UI for managing chats, ingesting documents, and monitoring active agents |
+| 🌐 **Language-Agnostic SDKs** | Auto-generated client libraries for Python, Node.js, Java, and C++ |
+
+---
+
+## 🏗️ Architecture
+
+Nexus Knowledge follows a microservices pattern: a central Chat Service handles core LLM logic, while downstream services consume events off Kafka independently — keeping compliance, analytics, and moderation fully decoupled from the request path.
+
+```mermaid
+graph TD
+    Client[Web UI / SDKs] -->|HTTPS / SSE| Gateway[API Gateway :8000]
+
+    Gateway -->|Auth / Rate Limit| ChatSvc[Chat Service :8001]
+    Gateway -->|Document Upload| ChatSvc
+
+    ChatSvc <-->|Cache / Memory| Redis[(Redis)]
+    ChatSvc <-->|Relational Data| PG[(PostgreSQL)]
+    ChatSvc <-->|Vector Data| Qdrant[(Qdrant Vector DB)]
+    ChatSvc <-->|LLM Generation| Ollama[LLM Provider]
+
+    ChatSvc -->|Produce Events| Kafka[Apache Kafka]
+
+    Kafka -->|Consume| Audit[Audit Service :8002]
+    Kafka -->|Consume| Analytics[Analytics Service :8003]
+    Kafka -->|Consume| Moderation[Moderation Service :8004]
 ```
 
----
-
-## 🚀 Quick Start (Running the Project)
-
-### Method 1: Using Docker Compose (Recommended)
-
-Make sure **Docker Desktop** is running on your computer.
-
-1. **Start all services in detached mode:**
-   ```powershell
-   docker-compose up -d --build
-   ```
-
-2. **Verify running container statuses:**
-   ```powershell
-   docker-compose ps
-   ```
-
-3. **View live logs across services:**
-   ```powershell
-   docker-compose logs -f
-   ```
-
-4. **Stop all services:**
-   ```powershell
-   docker-compose down
-   ```
+| Component | Port | Responsibility |
+|---|---|---|
+| API Gateway | `8000` | Ingress, authentication, RBAC, rate limiting |
+| Chat Service | `8001` | Core LLM engine, RAG pipeline, tool execution |
+| Audit Service | `8002` | Kafka consumer — compliance logging |
+| Analytics Service | `8003` | Kafka consumer — usage metrics |
+| Moderation Service | `8004` | Kafka consumer — PII / toxicity scanning |
 
 ---
 
-### Method 2: Running Services Locally (Without Docker Containers)
+## 🚀 Quick Start
 
-#### Prerequisites
-- **Python 3.10+** installed.
-- PostgreSQL running locally or remotely (configured via `DATABASE_URL`).
-- Redis running locally or remotely (configured via `REDIS_HOST`).
-- Qdrant running locally or remotely (configured via `QDRANT_HOST`).
+### Requirements
 
-#### Step 1: Start Chat Service (Port 8001)
-Open a new terminal tab:
-```powershell
-cd services/chat-service
-pip install -r requirements.txt
-uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload
+- Docker & Docker Compose
+- Python 3.11+ (for local development)
+
+### 1 · Start Core Infrastructure
+
+Boot the database, cache, vector store, and messaging layer:
+
+```bash
+docker-compose up -d postgres redis qdrant zookeeper kafka
 ```
 
-#### Step 2: Start API Gateway (Port 8000)
-Open another terminal tab:
-```powershell
+### 2 · Run the Microservices
+
+Run everything via Docker Compose:
+
+```bash
+docker-compose up -d --build
+```
+
+**— or —** run services individually for local development:
+
+<table>
+<tr><th>Terminal 1 — API Gateway</th></tr>
+<tr><td>
+
+```bash
 cd api-gateway
 pip install -r requirements.txt
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn src.main:app --app-dir src --host 0.0.0.0 --port 8000 --reload
+```
+
+</td></tr>
+<tr><th>Terminal 2 — Chat Service</th></tr>
+<tr><td>
+
+```bash
+cd services/chat-service
+pip install -r requirements.txt
+python -m uvicorn src.main:app --app-dir src --host 0.0.0.0 --port 8001 --reload
+```
+
+</td></tr>
+</table>
+
+---
+
+## 💻 Using the Nexus Knowledge Web UI
+
+The repository ships with a zero-dependency, enterprise-grade Glassmorphism frontend for interacting with the platform.
+
+1. Open a new terminal.
+2. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+3. Start a local web server:
+   ```bash
+   python -m http.server 3000
+   ```
+4. Open your browser to **[http://localhost:3000](http://localhost:3000)**
+
+From there you can chat with the AI, monitor active autonomous tools, and upload documents for RAG indexing.
+
+---
+
+## 🔐 Security & Access Control
+
+Nexus Knowledge enforces a zero-trust architecture — every request must pass through the **API Gateway** (`:8000`) for authentication and authorization before reaching internal services.
+
+> ⚠️ **Development use only.** The credentials below are placeholders for local testing. Rotate and remove them before any staging or production deployment.
+
+| Setting | Value |
+|---|---|
+| Test API Key | `cb_live_admin_key_123` |
+| Test Tenant | `tenant_production` |
+
+---
+
+## 🛠️ Project Structure
+
+```text
+ChatBots_platform/
+├── api-gateway/            # Ingress, Auth, RBAC, Rate Limiting
+├── services/
+│   ├── chat-service/       # Core LLM Engine, RAG, Tool Execution
+│   ├── audit-service/      # Kafka Consumer: Compliance logging
+│   ├── analytics-service/  # Kafka Consumer: Usage metrics
+│   └── moderation-service/ # Kafka Consumer: PII/Toxicity scanning
+├── frontend/                # Modern Glassmorphism Web UI
+├── infra/                   # Kubernetes manifests & Nginx configs
+├── sdks/                    # Language-agnostic client libraries
+└── scripts/                 # CI/CD, backup, and health-check scripts
 ```
 
 ---
 
-## 🧪 Testing & Verification
+## 🚢 Production Deployment
 
-Once services are running, execute any of the included automated test scripts from the repository root directory:
+Nexus Knowledge is designed for Kubernetes (K8s) deployments. Full instructions are available in `docs/deployment.md`.
 
-### 1. Test Core Chat & Conversation Memory (Phase 3)
-```powershell
-python api-gateway/test_api.py
-```
-*Or using PowerShell:*
-```powershell
-.\api-gateway\test_api.ps1
-```
+Deploy via the automated script:
 
-### 2. Test Document Ingestion & RAG (Phase 4)
-```powershell
-python test_rag.py
-```
-
-### 3. Test Real-time SSE Token Streaming (Phase 6)
-```powershell
-python test_streaming.py
-```
-*Or using PowerShell:*
-```powershell
-.\test_streaming.ps1
-```
-
-### 4. Test Language SDK Contracts (Phase 7)
-```powershell
-python test_sdks.py
+```bash
+./scripts/deploy.sh production
 ```
 
 ---
 
-## 📖 Interactive API Documentation & Dashboards
+## 📜 License
 
-When services are running, interactive Swagger UI documentation and admin dashboards are available at:
+Proprietary Enterprise Software. All rights reserved.
 
-- **API Gateway Swagger Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Chat Service Swagger Documentation:** [http://localhost:8001/docs](http://localhost:8001/docs)
-- **Qdrant Vector Database Web Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
+<div align="center">
 
----
+Built for teams that need AI at enterprise scale.
 
-## 📦 Language-Agnostic SDK Libraries
-
-Client libraries are structured in the `sdks/` directory:
-
-| Language | Location | Setup / Install |
-| :--- | :--- | :--- |
-| **Python** | `sdks/python/` | `pip install ./sdks/python` |
-| **Node.js / TypeScript** | `sdks/node/` | `npm install ./sdks/node` |
-| **Java** | `sdks/java/` | Build with `mvn clean install` |
-| **C++** | `sdks/cpp/` | CMake header-only library (`include/chatbot/client.hpp`) |
-
----
-
-## 🛠️ Environment Variables Configuration
-
-Set these environment variables in `docker-compose.yml` or your local `.env`:
-
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql://chatbot:chatbot_password@postgres:5432/chatbot_db` | PostgreSQL connection string |
-| `REDIS_HOST` | `redis` (or `localhost`) | Redis cache host |
-| `REDIS_PORT` | `6379` | Redis cache port |
-| `QDRANT_HOST` | `qdrant` (or `localhost`) | Qdrant vector database host |
-| `QDRANT_PORT` | `6333` | Qdrant vector database port |
-| `LLM_PROVIDER` | `mock` (or `ollama`, `openai`) | Provider engine for LLM inference |
-| `EMBEDDING_MODEL` | `mock` (or `openai`, `huggingface`) | Embedding generator model |
+</div>

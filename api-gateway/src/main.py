@@ -8,6 +8,7 @@ from config import settings
 from routes.chat import router as chat_router
 from routes.chat_stream import router as chat_stream_router
 from routes.documents import router as documents_router
+from routes.tools import router as tools_router
 from middleware.auth import verify_api_key
 from middleware.rate_limit import rate_limit_middleware
 from middleware.logging import logging_middleware
@@ -66,6 +67,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(chat_router, prefix=settings.API_PREFIX)
 app.include_router(chat_stream_router, prefix=settings.API_PREFIX)
 app.include_router(documents_router, prefix=settings.API_PREFIX)
+app.include_router(tools_router, prefix=settings.API_PREFIX)
 
 @app.get("/")
 async def root():
