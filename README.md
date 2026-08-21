@@ -158,7 +158,7 @@ Nexus Knowledge enforces a zero-trust architecture — every request must pass t
 
 | Setting | Value |
 |---|---|
-| Test API Key | `cb_live_admin_key_123` |
+| Test API Key | `<YOUR_SECURE_API_KEY>` |
 | Test Tenant | `tenant_production` |
 
 ---

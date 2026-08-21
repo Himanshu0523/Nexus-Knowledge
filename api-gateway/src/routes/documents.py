@@ -26,13 +26,23 @@ async def get_documents(request: Request, tenant_id: str = "default"):
                 status_code=response.status_code,
                 detail=response.json()
             )
-    except Exception as e:
+    except httpx.ConnectTimeout:
         raise HTTPException(
-            status_code=500,
+            status_code=504,
             detail={
                 "error": {
-                    "code": "FETCH_FAILED",
-                    "message": str(e)
+                    "code": "TIMEOUT",
+                    "message": "Connection to Chat Service timed out"
+                }
+            }
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": f"Service unavailable: {str(e)}"
                 }
             }
         )
@@ -78,13 +88,23 @@ async def upload_document(
                 detail=response.json()
             )
             
-    except Exception as e:
+    except httpx.ConnectTimeout:
         raise HTTPException(
-            status_code=500,
+            status_code=504,
             detail={
                 "error": {
-                    "code": "UPLOAD_FAILED",
-                    "message": str(e)
+                    "code": "TIMEOUT",
+                    "message": "Connection to Chat Service timed out"
+                }
+            }
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": f"Service unavailable: {str(e)}"
                 }
             }
         )

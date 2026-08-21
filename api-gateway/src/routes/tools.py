@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Request, HTTPException
-from typing import Dict, Any
+import httpx
+import os
 
 router = APIRouter()
+
+CHAT_SERVICE_URL = os.getenv("CHAT_SERVICE_URL", "http://localhost:8001")
 
 @router.get("/tools")
 async def get_tools(request: Request):
@@ -9,27 +12,23 @@ async def get_tools(request: Request):
     Get all active tools available to the LLM agent.
     Returns the real tools configured in the chat service.
     """
-    return {
-        "tools": [
-            {
-                "name": "Calculator",
-                "description": "Evaluates mathematical expressions safely",
-                "status": "Active"
-            },
-            {
-                "name": "Web_Search",
-                "description": "Searches the internet for real-time information",
-                "status": "Active"
-            },
-            {
-                "name": "Weather_API",
-                "description": "Fetches current weather data for locations",
-                "status": "Active"
-            },
-            {
-                "name": "Database_Query",
-                "description": "Queries the analytical database safely",
-                "status": "Active"
-            }
-        ]
-    }
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{CHAT_SERVICE_URL}/api/v1/tools",
+                timeout=5.0
+            )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.json())
+    except httpx.ConnectTimeout:
+        raise HTTPException(
+            status_code=504,
+            detail={"error": {"code": "TIMEOUT", "message": "Connection to Chat Service timed out"}}
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": {"code": "SERVICE_UNAVAILABLE", "message": f"Service unavailable: {str(e)}"}}
+        )
