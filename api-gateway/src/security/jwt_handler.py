@@ -7,7 +7,10 @@ class JWTHandler:
     """Handle JWT tokens"""
     
     def __init__(self):
-        self.secret_key = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+        self.secret_key = os.getenv("JWT_SECRET")
+        if not self.secret_key and os.getenv("ENVIRONMENT") == "production":
+            raise ValueError("JWT_SECRET environment variable is missing in production configuration!")
+        self.secret_key = self.secret_key or "your-secret-key-change-in-production"
         self.algorithm = "HS256"
         self.access_token_expiry = 3600
         self.refresh_token_expiry = 2592000

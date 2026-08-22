@@ -60,58 +60,47 @@ async def verify_api_key(
     authorization: Optional[str] = Header(None, description="Bearer token for authentication")
 ) -> Optional[str]:
     """
-    Verify API key for authentication.
-    Supports both X-API-Key header and Authorization: Bearer token.
-    
-    For Phase 1, this is a simple implementation that can be extended later.
+    Verify API key or JWT token for authentication.
+    Extracts authenticated user_id and tenant_id into request.state.
     """
-    # Check if authentication is required
-    auth_required = os.getenv("AUTH_REQUIRED", "false").lower() == "true"
+    auth_required = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
     
-    # If no API key is configured and auth is not required, allow request
-    if not key_manager.api_keys and not auth_required:
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+    
+    # First try JWT authentication
+    if token:
+        from security.jwt_handler import jwt_handler
+        payload = jwt_handler.decode_token(token)
+        if payload:
+            request.state.user_id = payload.get("sub")
+            request.state.tenant_id = payload.get("tenant_id")
+            request.state.roles = payload.get("roles", [])
+            return token
+
+    # Fallback to API Key
+    api_key = x_api_key or token
+    if api_key and key_manager.validate_key(api_key):
+        request.state.user_id = "api_key_user"
+        request.state.tenant_id = "default_tenant"
+        return api_key
+    
+    if not auth_required:
+        request.state.user_id = getattr(request.state, "user_id", "anonymous")
+        request.state.tenant_id = getattr(request.state, "tenant_id", "default_tenant")
         return None
-    
-    # Extract API key from different sources
-    api_key = x_api_key
-    
-    # Check Authorization header (Bearer token)
-    if not api_key and authorization:
-        if authorization.startswith("Bearer "):
-            api_key = authorization.replace("Bearer ", "")
-    
-    # Validate API key
-    if not api_key:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error": {
-                    "code": "UNAUTHORIZED",
-                    "message": "API key is required. Use X-API-Key header or Authorization: Bearer <key>",
-                    "request_id": getattr(request.state, "request_id", None)
-                }
+
+    raise HTTPException(
+        status_code=401,
+        detail={
+            "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Valid Authentication token or API key is required",
+                "request_id": getattr(request.state, "request_id", None)
             }
-        )
-    
-    if not key_manager.validate_key(api_key):
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error": {
-                    "code": "INVALID_API_KEY",
-                    "message": "The provided API key is invalid or inactive",
-                    "request_id": getattr(request.state, "request_id", None)
-                }
-            }
-        )
-    
-    # Optionally track usage (for future rate limiting)
-    key_info = key_manager.get_key_info(api_key)
-    if key_info:
-        key_info["last_used_at"] = datetime.utcnow()
-        key_info["request_count"] = key_info.get("request_count", 0) + 1
-    
-    return api_key
+        }
+    )
 
 async def verify_api_key_optional(
     request: Request,

@@ -46,8 +46,10 @@ class QdrantService:
     
     def upsert_chunks(self, chunks: List[Dict[str, Any]], vectors: List[List[float]], tenant_id: str):
         """Insert chunks and vectors into Qdrant"""
+        if not tenant_id or not tenant_id.strip():
+            raise ValueError("tenant_id must be provided for multi-tenant isolation")
         points = []
-        
+
         for chunk, vector in zip(chunks, vectors):
             # Create unique point ID
             point_id = str(uuid.uuid4())
@@ -85,7 +87,9 @@ class QdrantService:
         return len(points)
     
     def search(self, query_vector: List[float], tenant_id: str, limit: int = 20, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Search for similar chunks"""
+        """Search for similar chunks with strict tenant filtering"""
+        if not tenant_id or not tenant_id.strip():
+            raise ValueError("tenant_id must be provided for multi-tenant isolation")
         # Build filter
         search_filter = Filter(
             must=[

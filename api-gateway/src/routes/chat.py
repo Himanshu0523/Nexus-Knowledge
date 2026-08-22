@@ -45,12 +45,18 @@ async def chat(
     req: Request,
     api_key: str = Depends(verify_api_key)
 ):
-    """Process a chat message and return a response."""
     try:
+        tenant_id = getattr(req.state, "tenant_id", "default_tenant")
+        user_id = getattr(req.state, "user_id", "anonymous")
+        headers = {
+            "X-Tenant-ID": tenant_id,
+            "X-User-ID": user_id
+        }
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.CHAT_SERVICE_URL}{settings.API_PREFIX}/chat",
                 json=request.model_dump(),
+                headers=headers,
                 timeout=60.0
             )
             response.raise_for_status()

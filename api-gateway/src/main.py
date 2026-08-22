@@ -26,10 +26,11 @@ app = FastAPI(
 app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware
+allowed_origins = [origin.strip() for origin in getattr(settings, "ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=True if allowed_origins != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
