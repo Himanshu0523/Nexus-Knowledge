@@ -4,7 +4,11 @@ from fastapi.responses import JSONResponse
 import time
 import uuid
 
-from config import settings
+try:
+    from config import settings
+except ImportError:
+    from src.config import settings
+
 from routes.chat import router as chat_router
 from routes.chat_stream import router as chat_stream_router
 from routes.documents import router as documents_router
@@ -90,4 +94,4 @@ async def liveness_check():
 @app.get("/health/ready")
 async def readiness_check():
     # Verify gateway dependencies if any
-    return {"status": "ready"}
+    return {"status": "ready"}

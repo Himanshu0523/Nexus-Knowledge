@@ -7,12 +7,21 @@ import json
 import time
 import uuid
 
+try:
+    from config import settings
+except ImportError:
+    try:
+        from src.config import settings
+    except ImportError:
+        settings = None
+
 from database.postgres import get_db, init_db
 from database.redis_client import redis_client
 from orchestration.chat_orchestrator import ChatOrchestrator
 from rag.ingestion import IngestionPipeline
 from rag.qdrant_client import QdrantService
 from models.schemas import ChatRequest, ChatResponse
+
 
 app = FastAPI(title="Chat Service", version="3.0.0")
 
@@ -219,7 +228,10 @@ async def readiness_check():
 @app.get("/api/v1/conversations/{conversation_id}/history")
 async def get_conversation_history(conversation_id: str, db: Session = Depends(get_db)):
     """Get conversation history"""
-    from services.conversation_service import ConversationService
+    try:
+        from services.conversation_service import ConversationService
+    except ImportError:
+        from src.services.conversation_service import ConversationService
     conversation_service = ConversationService(db)
     history = conversation_service.get_conversation_history(conversation_id)
     return {"conversation_id": conversation_id, "messages": history}
@@ -227,7 +239,10 @@ async def get_conversation_history(conversation_id: str, db: Session = Depends(g
 @app.delete("/api/v1/conversations/{conversation_id}/cache")
 async def clear_conversation_cache(conversation_id: str, db: Session = Depends(get_db)):
     """Clear conversation cache"""
-    from services.conversation_service import ConversationService
+    try:
+        from services.conversation_service import ConversationService
+    except ImportError:
+        from src.services.conversation_service import ConversationService
     conversation_service = ConversationService(db)
     conversation_service.clear_conversation_cache(conversation_id)
     return {"status": "success", "message": "Cache cleared"}
