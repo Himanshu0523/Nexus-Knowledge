@@ -4,9 +4,9 @@ import uuid
 import httpx
 import os
 
-router = APIRouter()
+from config import settings
 
-CHAT_SERVICE_URL = os.getenv("CHAT_SERVICE_URL", "http://localhost:8001")
+router = APIRouter()
 
 @router.get("/documents")
 async def get_documents(request: Request, tenant_id: str = "default"):
@@ -14,7 +14,7 @@ async def get_documents(request: Request, tenant_id: str = "default"):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{CHAT_SERVICE_URL}/api/v1/documents",
+                f"{settings.CHAT_SERVICE_URL}/api/v1/documents",
                 params={"tenant_id": tenant_id},
                 timeout=10.0
             )
@@ -65,7 +65,7 @@ async def upload_document(
         # Send to chat service for processing
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{CHAT_SERVICE_URL}/api/v1/documents/process",
+                f"{settings.CHAT_SERVICE_URL}/api/v1/documents/process",
                 files={
                     "file": (file.filename, file_bytes, file.content_type)
                 },
@@ -114,7 +114,7 @@ async def get_document_status(document_id: str):
     """Get document processing status"""
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{CHAT_SERVICE_URL}/api/v1/documents/{document_id}/status"
+            f"{settings.CHAT_SERVICE_URL}/api/v1/documents/{document_id}/status"
         )
     
     if response.status_code == 200:
@@ -130,7 +130,7 @@ async def delete_document(document_id: str, tenant_id: str = "default"):
     """Delete a document from the knowledge base"""
     async with httpx.AsyncClient() as client:
         response = await client.delete(
-            f"{CHAT_SERVICE_URL}/api/v1/documents/{document_id}",
+            f"{settings.CHAT_SERVICE_URL}/api/v1/documents/{document_id}",
             params={"tenant_id": tenant_id}
         )
     

@@ -5,9 +5,9 @@ import httpx
 import json
 import os
 
-router = APIRouter()
+from config import settings
 
-CHAT_SERVICE_URL = os.getenv("CHAT_SERVICE_URL", "http://localhost:8001")
+router = APIRouter()
 
 @router.post("/chat/stream")
 async def chat_stream(request: Request):
@@ -19,7 +19,7 @@ async def chat_stream(request: Request):
             async with httpx.AsyncClient() as client:
                 async with client.stream(
                     "POST",
-                    f"{CHAT_SERVICE_URL}/api/v1/chat/stream",
+                    f"{settings.CHAT_SERVICE_URL}/api/v1/chat/stream",
                     json=body,
                     timeout=300.0
                 ) as response:

@@ -3,7 +3,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 import uuid
 
+import httpx
+
 from middleware.auth import verify_api_key
+from config import settings
 
 router = APIRouter()
 
@@ -44,19 +47,14 @@ async def chat(
 ):
     """Process a chat message and return a response."""
     try:
-        message_id = f"msg_{uuid.uuid4().hex[:10]}"
-        mock_response = f"Echo: {request.message}"
-
-        return ChatResponse(
-            conversation_id=request.conversation_id,
-            message_id=message_id,
-            response=mock_response,
-            usage=UsageInfo(
-                input_tokens=len(request.message.split()),
-                output_tokens=len(mock_response.split())
-            ),
-            model="qwen"
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.CHAT_SERVICE_URL}{settings.API_PREFIX}/chat",
+                json=request.model_dump(),
+                timeout=60.0
+            )
+            response.raise_for_status()
+            return ChatResponse(**response.json())
 
     except HTTPException:
         raise

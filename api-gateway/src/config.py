@@ -13,6 +13,7 @@ try:
         ADDITIONAL_API_KEYS: Optional[str] = "sk_test_key_1,sk_test_key_2"
         AUTH_REQUIRED: bool = False
         RATE_LIMIT_PER_MINUTE: int = 60
+        CHAT_SERVICE_URL: str = "http://chat-service:8001"
 
         model_config = SettingsConfigDict(
             env_file=".env",
@@ -33,6 +34,7 @@ except ImportError:
         ADDITIONAL_API_KEYS: Optional[str] = "sk_test_key_1,sk_test_key_2"
         AUTH_REQUIRED: bool = False
         RATE_LIMIT_PER_MINUTE: int = 60
+        CHAT_SERVICE_URL: str = "http://chat-service:8001"
 
         class Config:
             env_file = ".env"
