@@ -181,16 +181,6 @@ ChatBots_platform/
 
 ---
 
-## 🚢 Production Deployment
-
-Nexus Knowledge is designed for Kubernetes (K8s) deployments. Full instructions are available in `docs/deployment.md`.
-
-Deploy via the automated script:
-
-```bash
-./scripts/deploy.sh production
-```
-
 ---
 
 ## 📜 License
