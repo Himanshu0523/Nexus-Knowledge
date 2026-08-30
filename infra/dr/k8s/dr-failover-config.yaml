@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dr-failover-config
+  namespace: nexus-ai
+data:
+  PRIMARY_REGION: "us-east-1"
+  SECONDARY_REGION: "us-west-2"
+  HEARTBEAT_THRESHOLD: "3"
+  HEARTBEAT_INTERVAL_SEC: "10"
+  RPO_SLA_SECONDS: "900" # 15 minutes
+  RTO_SLA_SECONDS: "1800" # 30 minutes
+  DR_MODE: "ACTIVE_PASSIVE"

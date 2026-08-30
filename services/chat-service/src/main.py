@@ -21,9 +21,14 @@ from orchestration.chat_orchestrator import ChatOrchestrator
 from rag.ingestion import IngestionPipeline
 from rag.qdrant_client import QdrantService
 from models.schemas import ChatRequest, ChatResponse
+from shared.telemetry import TelemetryMiddleware, register_telemetry_routes, setup_telemetry_logging
 
+setup_telemetry_logging("chat-service")
 
 app = FastAPI(title="Chat Service", version="3.0.0")
+
+# Telemetry middleware
+app.add_middleware(TelemetryMiddleware, service_name="chat-service")
 
 # CORS middleware
 app.add_middleware(
@@ -33,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+register_telemetry_routes(app)
+
 
 ingestion_pipeline = IngestionPipeline()
 qdrant_service = QdrantService()
@@ -213,10 +221,12 @@ async def health_check():
     }
 
 @app.get("/health/live")
+@app.get("/healthz")
 async def liveness_check():
     return {"status": "alive"}
 
 @app.get("/health/ready")
+@app.get("/readyz")
 async def readiness_check():
     redis_healthy = redis_client.health_check()
     qdrant_healthy = qdrant_service.health_check()

@@ -1,0 +1,55 @@
+# Network Chaos: Latency injection wrapped in a Schedule CRD (Chaos Mesh v1alpha1)
+# Schedules cross-region latency simulation every Sunday at 03:00 AM UTC
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: nexus-latency-schedule
+  namespace: nexus-ai
+spec:
+  schedule: '0 3 * * 0' # Every Sunday at 03:00 AM UTC
+  type: NetworkChaos
+  historyLimit: 3
+  concurrencyPolicy: Forbid
+  networkChaosTemplate:
+    spec:
+      action: delay
+      mode: all
+      selector:
+        namespaces:
+          - nexus-ai
+        labelSelectors:
+          app: chat-service
+      delay:
+        latency: '300ms'
+        jitter: '50ms'
+        correlation: '50'
+      direction: to
+      target:
+        selector:
+          namespaces:
+            - nexus-ai
+          labelSelectors:
+            app: api-gateway
+        mode: all
+      duration: '5m'
+---
+# Network Chaos: Packet loss injection targeting the LLM provider path (one-shot)
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: nexus-llm-provider-loss-chaos
+  namespace: nexus-ai
+spec:
+  action: loss
+  mode: fixed
+  value: '1'
+  selector:
+    namespaces:
+      - nexus-ai
+    labelSelectors:
+      app: chat-service
+  loss:
+    loss: '25'
+    correlation: '25'
+  direction: both
+  duration: '3m'

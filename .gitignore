@@ -1,12 +1,46 @@
+# =============================================================================
+# Nexus Knowledge — .gitignore
+# Covers: Python, Node.js, Docker, Kubernetes, FastAPI, secrets, OS, IDEs
+# =============================================================================
+
+
+# =============================================================================
+# SECRETS & CREDENTIALS  ← Never commit these
+# =============================================================================
+.env
+.env.*
+!.env.example          # Keep the example template
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+*_secret.yaml
+*_secret.yml
+*-secret.yaml
+*-secret.yml
+kubeconfig
+.kubeconfig
+vault-token
+.vault-token
+
+
+# =============================================================================
+# PYTHON
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.pyo
 .Python
-env/
+
+# Distribution / packaging
 build/
-develop-eggs/
 dist/
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -20,11 +54,247 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.env
-.venv
+MANIFEST
+
+# Virtual environments
+.venv/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
-.idea/
+.virtualenv/
+.pyenv/
+Pipfile.lock
+
+# MyPy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Ruff / linters
+.ruff_cache/
+
+# Pytest / testing
+.pytest_cache/
+.cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+nosetests.xml
+test-results/
+test-reports/
+junit*.xml
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# FastAPI / Uvicorn
+*.pid
+
+
+# =============================================================================
+# NODE.JS / FRONTEND
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+.pnp.*
+.node_repl_history
+package-lock.json   # uncomment if using yarn
+# yarn.lock          # uncomment if using npm
+
+# Build outputs
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/out/
+sdks/*/dist/
+sdks/*/build/
+
+# Environment (frontend)
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+*.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+
+
+# =============================================================================
+# KUBERNETES / HELM
+# =============================================================================
+# Never commit rendered secret manifests
+**/rendered-secrets/
+**/sealed-secrets-decrypted/
+*.decrypted.yaml
+*.decrypted.yml
+
+# Helm
+charts/*/charts/
+charts/*/Chart.lock
+.helmignore
+
+
+# =============================================================================
+# DATABASES & DATA
+# =============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+postgres_data/
+valkey_data/
+qdrant_data/
+pgdata/
+
+# Backup files
+*.bak
+*.backup
+*.sql.gz
+
+
+# =============================================================================
+# LOGS & MONITORING
+# =============================================================================
+logs/
+*.log
+*.log.*
+log/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Prometheus
+prometheus_data/
+grafana_data/
+
+
+# =============================================================================
+# TESTING & QA
+# =============================================================================
+# Load test results
+locust-report/
+k6-results/
+artillery-reports/
+
+# Chaos engineering
+chaos-results/
+chaos-reports/
+
+# RAGAS / eval outputs
+eval-results/
+ragas-reports/
+*.eval.json
+
+
+# =============================================================================
+# DOCUMENTATION BUILD
+# =============================================================================
+docs/_build/
+docs/site/
+site/
+.mkdocs/
+
+
+# =============================================================================
+# IDEs & EDITORS
+# =============================================================================
+# VS Code
 .vscode/
+*.code-workspace
+
+# JetBrains (PyCharm, IntelliJ)
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+cmake-build-*/
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+*.orig
+Session.vim
+.netrwhist
+
+# Emacs
+*#
+.\#*
+.emacs.desktop
+.emacs.desktop.lock
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+
+# =============================================================================
+# OPERATING SYSTEM
+# =============================================================================
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+
+# =============================================================================
+# TEMPORARY & MISC
+# =============================================================================
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+scratch/
+*.bak
+*.orig
+*.rej
+*.patch
+
+# Profiling
+*.prof
+*.lprof
+profile_output/

@@ -1,0 +1,43 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: nexus-ai
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: chat-service-pdb
+  namespace: nexus-ai
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: chat-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: audit-service-pdb
+  namespace: nexus-ai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: audit-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: analytics-service-pdb
+  namespace: nexus-ai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: analytics-service

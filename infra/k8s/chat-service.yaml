@@ -22,7 +22,7 @@ spec:
             - name: DATABASE_URL
               value: "postgresql://chatbot:chatbot_password@postgres:5432/chatbot_db"
             - name: REDIS_HOST
-              value: "redis"
+              value: "valkey-sentinel"
             - name: QDRANT_HOST
               value: "qdrant"
             - name: KAFKA_BOOTSTRAP_SERVERS

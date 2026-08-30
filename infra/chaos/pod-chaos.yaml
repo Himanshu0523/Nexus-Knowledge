@@ -1,0 +1,58 @@
+# Pod Chaos: One-shot pod-kill for chat-service (manual trigger / CI pipeline)
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: nexus-chat-service-pod-failure
+  namespace: nexus-ai
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - nexus-ai
+    labelSelectors:
+      app: chat-service
+  gracePeriod: 0
+  duration: '2m'
+---
+# Pod Chaos: Scheduled weekly pod-kill wrapped in a Schedule CRD
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: nexus-pod-kill-schedule
+  namespace: nexus-ai
+spec:
+  schedule: '30 3 * * 0'  # Every Sunday at 03:30 AM UTC
+  type: PodChaos
+  historyLimit: 3
+  concurrencyPolicy: Forbid
+  podChaosTemplate:
+    spec:
+      action: pod-kill
+      mode: one
+      selector:
+        namespaces:
+          - nexus-ai
+        labelSelectors:
+          app: chat-service
+      gracePeriod: 0
+      duration: '2m'
+---
+# Pod Chaos: Container-kill targeting api-gateway (one-shot)
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: nexus-container-kill-gateway
+  namespace: nexus-ai
+spec:
+  action: container-kill
+  mode: fixed
+  value: '1'
+  selector:
+    namespaces:
+      - nexus-ai
+    labelSelectors:
+      app: api-gateway
+  containerNames:
+    - api-gateway
+  duration: '1m'

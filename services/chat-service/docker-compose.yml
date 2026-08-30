@@ -19,16 +19,16 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
+  valkey:
+    image: valkey/valkey:7-alpine
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     networks:
       - chatbot-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -55,12 +55,12 @@ services:
       - "8001:8001"
     environment:
       - DATABASE_URL=postgresql://chatbot:chatbot_password@postgres:5432/chatbot_db
-      - REDIS_HOST=redis
+      - REDIS_HOST=valkey
       - REDIS_PORT=6379
       - LLM_PROVIDER=mock
     depends_on:
       - postgres
-      - redis
+      - valkey
     networks:
       - chatbot-network
     volumes:
@@ -68,7 +68,7 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:
 
 networks:
   chatbot-network:

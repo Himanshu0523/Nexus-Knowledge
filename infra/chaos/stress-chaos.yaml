@@ -1,0 +1,36 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: nexus-cpu-stress-chaos
+  namespace: nexus-ai
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - nexus-ai
+    labelSelectors:
+      app: chat-service
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: '5m'
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: nexus-memory-stress-chaos
+  namespace: nexus-ai
+spec:
+  mode: fixed
+  value: '1'
+  selector:
+    namespaces:
+      - nexus-ai
+    labelSelectors:
+      app: api-gateway
+  stressors:
+    memory:
+      workers: 1
+      size: '512MB'
+  duration: '3m'

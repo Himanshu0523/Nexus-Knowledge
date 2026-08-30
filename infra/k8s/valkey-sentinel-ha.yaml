@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-cluster
+  namespace: nexus-ai
+spec:
+  serviceName: valkey-cluster
+  replicas: 3
+  selector:
+    matchLabels:
+      app: valkey-cluster
+  template:
+    metadata:
+      labels:
+        app: valkey-cluster
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:7-alpine
+          ports:
+            - containerPort: 6379
+              name: valkey
+            - containerPort: 26379
+              name: sentinel
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-sentinel
+  namespace: nexus-ai
+spec:
+  ports:
+    - port: 26379
+      targetPort: 26379
+      name: sentinel
+    - port: 6379
+      targetPort: 6379
+      name: valkey
+  selector:
+    app: valkey-cluster

@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qdrant-snapshot-cronjob
+  namespace: nexus-ai
+spec:
+  schedule: "30 2 * * *" # Daily at 02:30 UTC
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: qdrant-snapshot
+              image: python:3.10-slim
+              command: ["python", "/scripts/qdrant_snapshot.py"]
+              env:
+                - name: QDRANT_URL
+                  value: "http://qdrant-headless:6333"
+              volumeMounts:
+                - name: scripts-volume
+                  mountPath: /scripts
+                - name: backup-storage
+                  mountPath: /tmp/qdrant_snapshots
+          volumes:
+            - name: scripts-volume
+              configMap:
+                name: dr-backup-scripts
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: dr-backup-pvc

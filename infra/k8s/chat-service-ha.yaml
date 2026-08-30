@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: nexus-ai
+  labels:
+    app: chat-service
+    tier: backend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - chat-service
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: chat-service
+          image: nexus-ai/chat-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+              name: http
+          env:
+            - name: DATABASE_PRIMARY_URL
+              value: "postgresql://chatbot:chatbot_password@postgres-primary:5432/chatbot_db"
+            - name: DATABASE_REPLICA_URLS
+              value: "postgresql://chatbot:chatbot_password@postgres-replica-0:5432/chatbot_db,postgresql://chatbot:chatbot_password@postgres-replica-1:5432/chatbot_db"
+            - name: REDIS_SENTINELS
+              value: "valkey-sentinel-0:26379,valkey-sentinel-1:26379,valkey-sentinel-2:26379"
+            - name: QDRANT_CLUSTER_NODES
+              value: "http://qdrant-0.qdrant-headless:6333,http://qdrant-1.qdrant-headless:6333"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-0.kafka-headless:9092,kafka-1.kafka-headless:9092,kafka-2.kafka-headless:9092"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 1024Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            failureThreshold: 10
+            periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: nexus-ai
+  labels:
+    app: chat-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8001
+      targetPort: 8001
+      name: http
+  selector:
+    app: chat-service

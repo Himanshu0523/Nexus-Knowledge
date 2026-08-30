@@ -22,6 +22,8 @@ from security.prompt_guard import prompt_guard
 from security.output_guard import output_guard
 
 
+from shared.governance import governance_engine
+
 # Kafka producer — imported with graceful fallback
 try:
     from kafka.producer import kafka_producer
@@ -36,7 +38,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class ChatOrchestrator:
-    """Orchestrate chat with memory, RAG, and streaming support"""
+    """Orchestrate chat with memory, RAG, streaming, security, and AI Governance support"""
     
     def __init__(self, db_session):
         self.db = db_session
@@ -50,13 +52,38 @@ class ChatOrchestrator:
         self.max_agent_iterations = 5
     
     async def process_message(self, request: Dict[str, Any], tenant_id: str = "default") -> Dict[str, Any]:
-        """Process a chat message synchronously with optional RAG"""
+        """Process a chat message synchronously with optional RAG and AI Governance"""
         conversation_id = request["conversation_id"]
         message = request["message"]
         knowledge_base_id = request.get("knowledge_base_id")
+        requested_model = request.get("model")
+        requested_tools = request.get("tools")
+
+        # ── Phase 17: AI Gateway Governance Evaluation ──
+        gov_result = governance_engine.evaluate_request(
+            tenant_id=tenant_id,
+            prompt=message,
+            model=requested_model,
+            requested_tools=requested_tools,
+            knowledge_base_id=knowledge_base_id,
+        )
+
+        if not gov_result.allowed:
+            logger.warning(f"[Governance] Request denied for tenant '{tenant_id}': {gov_result.denial_reason}")
+            return {
+                "conversation_id": conversation_id,
+                "message_id": f"msg_{uuid.uuid4().hex[:10]}",
+                "response": f"Governance Policy Denied: {gov_result.denial_reason}",
+                "sources": [],
+                "usage": {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
+                "model": "governance-guard",
+                "error_code": gov_result.error_code,
+            }
+
+        effective_message = gov_result.sanitized_prompt
 
         # ── Phase 9: Prompt Injection Protection ──
-        is_safe, reason = prompt_guard.inspect(message)
+        is_safe, reason = prompt_guard.inspect(effective_message)
         if not is_safe:
             logger.warning(f"[Security] Blocked unsafe message in conv '{conversation_id}': {reason}")
             return {
@@ -68,7 +95,7 @@ class ChatOrchestrator:
                 "model": "security-guard"
             }
 
-        sanitized_message = prompt_guard.sanitize(message)
+        sanitized_message = prompt_guard.sanitize(effective_message)
         use_rag = bool(knowledge_base_id) or self._should_use_rag(sanitized_message)
 
         conversation_context = self.context_builder.build_context(
@@ -78,7 +105,7 @@ class ChatOrchestrator:
         
         if use_rag:
             rag_context = await self.rag_context_builder.build_context(
-                message,
+                sanitized_message,
                 tenant_id,
                 knowledge_base_id
             )
@@ -100,24 +127,38 @@ class ChatOrchestrator:
         if "response" in llm_response:
             llm_response["response"] = output_guard.sanitize(llm_response["response"])
 
-        self.conversation_service.add_message(
-            conversation_id=conversation_id,
-            role="user",
-            content=sanitized_message,
-            model=llm_response.get("model")
-        )
-        
-        self.conversation_service.add_message(
-            conversation_id=conversation_id,
-            role="assistant",
-            content=llm_response["response"],
-            model=llm_response.get("model")
-        )
-        
+        # ── Phase 17: Record Usage & Enforce Data Retention ──
+        usage = llm_response.get("usage", {})
+        inp_toks = usage.get("input_tokens", len(sanitized_message) // 4)
+        out_toks = usage.get("output_tokens", len(llm_response.get("response", "")) // 4)
+        used_model = llm_response.get("model", "qwen")
+
+        cost = governance_engine.record_usage(tenant_id, used_model, inp_toks, out_toks)
+        if "usage" not in llm_response or not isinstance(llm_response["usage"], dict):
+            llm_response["usage"] = {}
+        llm_response["usage"]["cost_usd"] = cost
+
+        if not gov_result.zero_retention_mode:
+            self.conversation_service.add_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=sanitized_message,
+                model=used_model
+            )
+            
+            self.conversation_service.add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=llm_response["response"],
+                model=used_model
+            )
+        else:
+            logger.info(f"[Governance] Zero data retention active for tenant '{tenant_id}'. Skipping conversation log persistence.")
+
         # Publish Kafka events asynchronously (fire-and-forget)
         self._publish_chat_events(
             conversation_id=conversation_id,
-            message=message,
+            message=sanitized_message,
             llm_response=llm_response,
             tenant_id=tenant_id
         )
@@ -178,7 +219,7 @@ class ChatOrchestrator:
         tenant_id: str = "default",
         user_context: Optional[Dict[str, Any]] = None
     ) -> AsyncGenerator[StreamEvent, None]:
-        """Process chat message with streaming response"""
+        """Process chat message with streaming response and AI Governance evaluation"""
         conversation_id = request["conversation_id"]
         message = request["message"]
         knowledge_base_id = request.get("knowledge_base_id")
@@ -187,6 +228,26 @@ class ChatOrchestrator:
         full_response = ""
         tool_results_history = []
         message_id = f"msg_{uuid.uuid4().hex[:10]}"
+
+        # ── Phase 17: Governance Evaluation for Streaming ──
+        gov_result = governance_engine.evaluate_request(
+            tenant_id=tenant_id,
+            prompt=message,
+            model=request.get("model"),
+            requested_tools=request.get("tools"),
+            knowledge_base_id=knowledge_base_id,
+        )
+
+        if not gov_result.allowed:
+            logger.warning(f"[Governance Stream] Request denied for tenant '{tenant_id}': {gov_result.denial_reason}")
+            yield ErrorEvent(
+                code=gov_result.error_code,
+                message=f"Governance Policy Denied: {gov_result.denial_reason}"
+            )
+            yield DoneEvent(status=StreamStatus.FAILED)
+            return
+
+        effective_message = gov_result.sanitized_prompt
         
         try:
             yield StatusEvent(
@@ -194,16 +255,16 @@ class ChatOrchestrator:
                 message="Processing request..."
             )
             
-            messages = self.context_builder.build_context(conversation_id, message)
+            messages = self.context_builder.build_context(conversation_id, effective_message)
             
-            if self._should_use_rag(message) or knowledge_base_id:
+            if self._should_use_rag(effective_message) or knowledge_base_id:
                 yield StatusEvent(
                     status=StreamStatus.RETRIEVING,
                     message="Retrieving relevant context..."
                 )
                 
                 rag_context = await self.rag_context_builder.build_context(
-                    message,
+                    effective_message,
                     tenant_id,
                     knowledge_base_id
                 )
@@ -229,21 +290,29 @@ class ChatOrchestrator:
                 full_response += token
                 yield TokenEvent(content=token)
             
-            self._save_conversation(
-                conversation_id,
-                message,
-                full_response,
-                self.llm_service.model,
-                tool_results_history
-            )
+            inp_toks = len(str(messages)) // 4
+            out_toks = len(full_response) // 4
+            cost = governance_engine.record_usage(tenant_id, self.llm_service.model, inp_toks, out_toks)
+
+            if not gov_result.zero_retention_mode:
+                self._save_conversation(
+                    conversation_id,
+                    effective_message,
+                    full_response,
+                    self.llm_service.model,
+                    tool_results_history
+                )
+            else:
+                logger.info(f"[Governance Stream] Zero data retention enabled for tenant '{tenant_id}'. Skipping conversation save.")
             
             yield DoneEvent(
                 message_id=message_id,
                 conversation_id=conversation_id,
                 status=StreamStatus.COMPLETED,
                 usage={
-                    "input_tokens": len(str(messages)) // 4,
-                    "output_tokens": len(full_response) // 4
+                    "input_tokens": inp_toks,
+                    "output_tokens": out_toks,
+                    "cost_usd": cost,
                 },
                 model=self.llm_service.model
             )

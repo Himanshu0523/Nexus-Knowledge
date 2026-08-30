@@ -17,7 +17,10 @@ from middleware.auth import verify_api_key
 from middleware.rate_limit import rate_limit_middleware
 from middleware.logging import logging_middleware
 from middleware.security_headers import SecurityHeadersMiddleware
+from shared.security.idempotency import IdempotencyManager, IdempotencyMiddleware
+from shared.telemetry import TelemetryMiddleware, register_telemetry_routes, setup_telemetry_logging
 
+setup_telemetry_logging("api-gateway")
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -25,6 +28,13 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Automated Telemetry middleware (Tracing, Context, Prometheus metrics)
+app.add_middleware(TelemetryMiddleware, service_name="api-gateway")
+
+# Idempotency middleware
+idempotency_manager = IdempotencyManager()
+app.add_middleware(IdempotencyMiddleware, manager=idempotency_manager)
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
@@ -43,7 +53,7 @@ app.add_middleware(
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
-    request_id = str(uuid.uuid4())
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.state.request_id = request_id
     
     response = await call_next(request)
@@ -74,6 +84,8 @@ app.include_router(chat_stream_router, prefix=settings.API_PREFIX)
 app.include_router(documents_router, prefix=settings.API_PREFIX)
 app.include_router(tools_router, prefix=settings.API_PREFIX)
 
+register_telemetry_routes(app)
+
 @app.get("/")
 async def root():
     return {
@@ -88,10 +100,12 @@ async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
 @app.get("/health/live")
+@app.get("/healthz")
 async def liveness_check():
     return {"status": "alive"}
 
 @app.get("/health/ready")
+@app.get("/readyz")
 async def readiness_check():
     # Verify gateway dependencies if any
     return {"status": "ready"}

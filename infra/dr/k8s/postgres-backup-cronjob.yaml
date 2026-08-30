@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-cronjob
+  namespace: nexus-ai
+spec:
+  schedule: "0 2 * * *" # Daily at 02:00 UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-backup
+              image: postgres:14-alpine
+              command: ["/bin/sh", "-c", "/scripts/postgres_backup.sh"]
+              env:
+                - name: POSTGRES_HOST
+                  value: "postgres-primary"
+                - name: POSTGRES_DB
+                  value: "chatbot_db"
+                - name: POSTGRES_USER
+                  value: "chatbot"
+                - name: POSTGRES_PASSWORD
+                  value: "chatbot_password"
+                - name: DR_BACKUP_S3_BUCKET
+                  value: "s3://nexus-ai-backups/postgres"
+              volumeMounts:
+                - name: scripts-volume
+                  mountPath: /scripts
+                - name: backup-storage
+                  mountPath: /tmp/db_backups
+          volumes:
+            - name: scripts-volume
+              configMap:
+                name: dr-backup-scripts
+                defaultMode: 0755
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: dr-backup-pvc

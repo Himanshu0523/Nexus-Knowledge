@@ -36,8 +36,8 @@ services:
     networks:
       - chatbot-network
 
-  redis:
-    image: redis:7-alpine
+  valkey:
+    image: valkey/valkey:7-alpine
     networks:
       - chatbot-network
 
@@ -73,7 +73,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-chatbot}:${POSTGRES_PASSWORD:-chatbot_password}@postgres:5432/${POSTGRES_DB:-chatbot_db}
-      - REDIS_HOST=redis
+      - REDIS_HOST=valkey
       - REDIS_PORT=6379
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
@@ -82,7 +82,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
       - postgres
-      - redis
+      - valkey
       - qdrant
       - kafka
     networks:
@@ -126,7 +126,7 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:
   qdrant_data:
 
 networks:
