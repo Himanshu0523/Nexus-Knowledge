@@ -466,7 +466,6 @@ Or use the automated deployment script:
 ```bash
 ./scripts/deploy.sh production
 ```
-
 ---
 
 ## 🧪 Running Tests
