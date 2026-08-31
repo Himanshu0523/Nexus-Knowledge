@@ -2,7 +2,7 @@
 
 # 🤖 Nexus Knowledge
 
-### Enterprise Multi-Tenant Conversational AI Platform
+### Enterprise Multi-Tenant Conversational AI Platform-(Learning Projects)
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688?style=for-the-badge&logo=fastapi&logoColor=white)](#)
