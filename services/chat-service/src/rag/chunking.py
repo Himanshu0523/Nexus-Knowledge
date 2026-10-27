@@ -2,6 +2,21 @@ from typing import List, Dict, Any
 import re
 import uuid
 
+def compute_sparse_vector(text: str) -> Dict[str, float]:
+    """
+    Generate sparse lexical vector (term frequencies) alongside dense embeddings
+    to enable high-recall keyword and exact term matching (codes, IDs, names).
+    """
+    tokens = re.findall(r"\b\w+\b", text.lower())
+    if not tokens:
+        return {}
+    tf = {}
+    for t in tokens:
+        tf[t] = tf.get(t, 0) + 1
+    total = len(tokens)
+    return {t: round(count / total, 5) for t, count in tf.items()}
+
+
 class TextCleaner:
     """Clean extracted text from documents"""
     
@@ -62,14 +77,16 @@ class TextChunker:
             # Join words into chunk text
             chunk_text = ' '.join(chunk_words)
             
-            # Create chunk metadata
+            # Create chunk metadata with sparse BM25 vector representation
             chunk_id = f"chunk_{uuid.uuid4().hex[:10]}"
+            sparse_vector = compute_sparse_vector(chunk_text)
             chunk = {
                 "chunk_id": chunk_id,
                 "text": chunk_text,
                 "chunk_index": chunk_index,
                 "start_word": i,
                 "end_word": min(i + self.chunk_size, len(words)),
+                "sparse_vector": sparse_vector,
                 "metadata": metadata or {}
             }
             

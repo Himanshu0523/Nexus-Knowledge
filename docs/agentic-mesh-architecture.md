@@ -95,13 +95,17 @@ Nexus Knowledge transitions beyond basic RAG pipelines (`Query -> Retrieve Chunk
 
 ## 3. Verification & Test Suite
 
-The entire Agentic Mesh is covered by automated integration tests:
-* **Test file:** `tests/test_agentic_mesh.py`
-* **Command:** `python tests/test_agentic_mesh.py`
-* **Test Coverage:**
+The entire Agentic Mesh and production hardening suite is covered by automated integration tests:
+* **Primary Mesh Suite:** `python tests/test_agentic_mesh.py`
   1. `test_01_hierarchical_graph_rag_extraction_and_traversal` (PASSED)
   2. `test_02_hybrid_search_rrf_blending` (PASSED)
   3. `test_03_cross_encoder_and_semantic_reranking` (PASSED)
   4. `test_04_corrective_rag_crag_evaluator_and_query_reformulation` (PASSED)
   5. `test_05_multi_agent_collaborative_mesh_router` (PASSED)
   6. `test_06_realtime_token_attribution_and_budget_guards` (PASSED)
+
+* **Production Hardening Suite:** `python tests/test_final_upgrades.py`
+  1. `Phase 1: Sparse Vector Generation & Qdrant Payload with RRF (k=60)` (PASSED)
+  2. `Phase 2: Corrective RAG (CRAG) Evaluator Judge (Score >= 0.75 Pass / < 0.75 Fallback)` (PASSED)
+  3. `Phase 3: Zero-Trust Multi-Tenancy & Ingestion PII Scrubbing (Email/Phone/API Keys/SSN)` (PASSED)
+  4. `Phase 4: Live Prometheus Observability (/metrics) & Circuit Breaker 503 Provider Switching` (PASSED)

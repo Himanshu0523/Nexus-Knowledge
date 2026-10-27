@@ -6,7 +6,7 @@ from .qdrant_client import QdrantService
 from .context_builder import RAGContextBuilder
 from .chunking import TextChunker, TextCleaner
 from .graph_rag import graph_rag_service, GraphRAGService
-from .crag import crag_evaluator, CorrectiveRAGEvaluator, CRAGResult, CRAGAction
+from .crag import crag_evaluator, CorrectiveRAGEvaluator, CRAGResult, CRAGAction, evaluate_retrieval_confidence
 
 __all__ = [
     "IngestionPipeline",
@@ -23,5 +23,6 @@ __all__ = [
     "CorrectiveRAGEvaluator",
     "CRAGResult",
     "CRAGAction",
+    "evaluate_retrieval_confidence",
     "lexical_corpus_index"
 ]

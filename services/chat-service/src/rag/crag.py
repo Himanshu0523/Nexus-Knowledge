@@ -57,7 +57,7 @@ class CorrectiveRAGEvaluator:
 
     def __init__(
         self,
-        correct_threshold: float = 0.70,
+        correct_threshold: float = 0.75,
         incorrect_threshold: float = 0.40,
         min_chunk_relevance: float = 0.35
     ):
@@ -256,4 +256,18 @@ class CorrectiveRAGEvaluator:
 
 
 # Global singleton instance
-crag_evaluator = CorrectiveRAGEvaluator()
+crag_evaluator = CorrectiveRAGEvaluator(correct_threshold=0.75, incorrect_threshold=0.40)
+
+
+async def evaluate_retrieval_confidence(query: str, chunks: List[Dict[str, Any]]) -> float:
+    """
+    Lightweight async judge function that takes the user's query and the retrieved top chunks,
+    and outputs a calibrated confidence score between 0.0 and 1.0.
+
+    - Score >= 0.75: High confidence, proceeds directly to prompt construction.
+    - Score < 0.75: Low/ambiguous confidence, triggers query reformulation or fallback.
+    """
+    if not chunks:
+        return 0.0
+    _, confidence, _ = crag_evaluator.evaluate_retrieval(query, chunks)
+    return round(float(confidence), 4)

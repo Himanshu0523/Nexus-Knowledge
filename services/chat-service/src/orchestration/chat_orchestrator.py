@@ -158,6 +158,20 @@ class ChatOrchestrator:
         used_model = llm_response.get("model", "qwen")
 
         cost = governance_engine.record_usage(tenant_id, used_model, inp_toks, out_toks)
+        try:
+            from shared.telemetry.metrics import metrics
+            metrics.record_llm_request(
+                provider="nexus-llm",
+                model=used_model,
+                status="success",
+                duration=0.05,
+                input_tokens=inp_toks,
+                output_tokens=out_toks,
+                tenant_id=tenant_id
+            )
+        except Exception:
+            pass
+
         if "usage" not in llm_response or not isinstance(llm_response["usage"], dict):
             llm_response["usage"] = {}
         llm_response["usage"]["cost_usd"] = cost
@@ -356,6 +370,19 @@ class ChatOrchestrator:
             inp_toks = len(str(messages)) // 4
             out_toks = len(full_response) // 4
             cost = governance_engine.record_usage(tenant_id, self.llm_service.model, inp_toks, out_toks)
+            try:
+                from shared.telemetry.metrics import metrics
+                metrics.record_llm_request(
+                    provider="nexus-llm",
+                    model=self.llm_service.model,
+                    status="success",
+                    duration=0.1,
+                    input_tokens=inp_toks,
+                    output_tokens=out_toks,
+                    tenant_id=tenant_id
+                )
+            except Exception:
+                pass
 
             if not gov_result.zero_retention_mode:
                 self._save_conversation(

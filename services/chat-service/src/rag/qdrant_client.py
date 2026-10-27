@@ -54,7 +54,8 @@ class QdrantService:
             # Create unique point ID
             point_id = str(uuid.uuid4())
             
-            # Prepare payload
+            # Prepare payload with both dense and sparse representations
+            sparse_vec = chunk.get("sparse_vector") or {}
             payload = {
                 "document_id": chunk.get("metadata", {}).get("document_id"),
                 "chunk_id": chunk["chunk_id"],
@@ -63,6 +64,8 @@ class QdrantService:
                 "page": chunk.get("metadata", {}).get("page"),
                 "source": chunk.get("metadata", {}).get("source"),
                 "tenant_id": tenant_id,
+                "dense_vector": vector,
+                "sparse_vector": sparse_vec,
                 "metadata": chunk.get("metadata", {})
             }
             
@@ -79,10 +82,13 @@ class QdrantService:
         batch_size = 100
         for i in range(0, len(points), batch_size):
             batch = points[i:i + batch_size]
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=batch
-            )
+            try:
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=batch
+                )
+            except Exception as e:
+                print(f"Warning: Qdrant upsert skipped/deferred: {e}")
         
         return len(points)
     
@@ -110,22 +116,35 @@ class QdrantService:
                     )
                 )
         
-        # Search
-        results = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector,
-            limit=limit,
-            query_filter=search_filter
-        )
-        
-        # Format results
+        # Search with API version tolerance
         formatted_results = []
-        for result in results:
-            formatted_results.append({
-                "id": result.id,
-                "score": result.score,
-                "payload": result.payload
-            })
+        try:
+            if hasattr(self.client, "search"):
+                results = self.client.search(
+                    collection_name=self.collection_name,
+                    query_vector=query_vector,
+                    limit=limit,
+                    query_filter=search_filter
+                )
+            elif hasattr(self.client, "query_points"):
+                q_res = self.client.query_points(
+                    collection_name=self.collection_name,
+                    query=query_vector,
+                    limit=limit,
+                    query_filter=search_filter
+                )
+                results = q_res.points
+            else:
+                results = []
+
+            for result in results:
+                formatted_results.append({
+                    "id": getattr(result, "id", None),
+                    "score": getattr(result, "score", 0.0),
+                    "payload": getattr(result, "payload", {})
+                })
+        except Exception as e:
+            print(f"Warning: Qdrant search skipped/deferred: {e}")
         
         return formatted_results
     

@@ -11,11 +11,12 @@ from .embeddings import EmbeddingService
 from .qdrant_client import QdrantService
 from .retriever import lexical_corpus_index
 from .graph_rag import graph_rag_service
+from security.pii_scrubber import pii_scrubber
 
 logger = logging.getLogger(__name__)
 
 class IngestionPipeline:
-    """Complete document ingestion pipeline with Hybrid BM25 indexing and Knowledge Graph extraction"""
+    """Complete document ingestion pipeline with Hybrid BM25 indexing, PII scrubbing, and Knowledge Graph extraction"""
     
     def __init__(self):
         self.chunker = TextChunker(chunk_size=500, overlap=50)
@@ -37,6 +38,20 @@ class IngestionPipeline:
                     "document_id": document_id
                 }
             
+            # Step 1.5: Zero-Trust PII Scrubbing Middleware
+            # Strip sensitive data (emails, phones, API keys, SSNs) before chunking or vector storage
+            pii_redactions_total = 0
+            for page in parsed_document.get("pages", []):
+                raw_page_text = page.get("text", "")
+                scrubbed_text, redactions = pii_scrubber.scrub(raw_page_text)
+                page["text"] = scrubbed_text
+                pii_redactions_total += sum(redactions.values())
+
+            if "text" in parsed_document and parsed_document["text"]:
+                scrubbed_doc, d_redactions = pii_scrubber.scrub(parsed_document["text"])
+                parsed_document["text"] = scrubbed_doc
+                pii_redactions_total += sum(d_redactions.values())
+
             # Step 2: Chunk document
             parsed_document["document_id"] = document_id
             chunks = self.chunker.chunk_document(parsed_document)
@@ -85,7 +100,8 @@ class IngestionPipeline:
                 "file_type": file_type,
                 "total_pages": parsed_document.get("total_pages", 1),
                 "graph_entities": graph_entities_total,
-                "graph_triples": graph_triples_total
+                "graph_triples": graph_triples_total,
+                "pii_redactions": pii_redactions_total
             }
             
         except Exception as e:

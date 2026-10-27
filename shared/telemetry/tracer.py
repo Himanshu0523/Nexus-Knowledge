@@ -1,7 +1,7 @@
 import time
 import uuid
 import secrets
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 from contextlib import contextmanager
 from shared.telemetry.context import (
