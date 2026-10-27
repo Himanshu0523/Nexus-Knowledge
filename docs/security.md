@@ -32,11 +32,27 @@ The `OutputGuard` engine inspects generated LLM responses before delivering them
 
 ---
 
-## 🏢 4. Multi-Tenant Data Isolation
+## 🏢 4. Zero-Trust Multi-Tenant Data Isolation & Ingestion PII Scrubbing
 
 1. **Database Scoping (PostgreSQL):** All conversation, message, and document queries strictly filter on `WHERE tenant_id = :tenant_id`.
-2. **Cache Isolation (Redis):** Keys are namespaced by tenant (e.g. `tenant:<tenant_id>:conv:<conv_id>`).
-3. **Vector Search Isolation (Qdrant):** Every similarity search includes explicit Qdrant payload filters matching `tenant_id`.
+2. **Cache Isolation (Redis):** Keys are strictly namespaced by tenant (e.g. `tenant:<tenant_id>:conv:<conv_id>`).
+3. **Vector Search Isolation (Qdrant):** Every similarity search and delete operation mandates explicit payload filters matching `tenant_id`:
+   ```python
+   models.Filter(
+       must=[models.FieldCondition(key="tenant_id", match=models.MatchValue(value=tenant_id))]
+   )
+   ```
+   Cross-tenant data access is strictly blocked and raises validation exceptions if `tenant_id` is missing.
+4. **Ingestion PII Scrubbing Pre-Processor (`PIIScrubber`):**
+   - Source: [`shared/security/pii_scrubber.py`](file:///d:/Python_Ai_Project/ChatBots_platform/shared/security/pii_scrubber.py)
+   - Executed inside [`IngestionPipeline`](file:///d:/Python_Ai_Project/ChatBots_platform/services/chat-service/src/rag/ingestion.py) before chunking, dense vector embeddings, or Qdrant storage.
+   - **Masking Rules & Tags:**
+     - **Emails:** `[REDACTED_EMAIL]`
+     - **Phone Numbers:** `[REDACTED_PHONE]`
+     - **API Keys / Secrets (`sk_...`, `ghp_...`, `pk_...`):** `[REDACTED_API_KEY]`
+     - **Bearer Tokens:** `[REDACTED_TOKEN]`
+     - **Social Security Numbers (`\b\d{3}-\d{2}-\d{4}\b`):** `[REDACTED_SSN]`
+     - **Credit Card Numbers:** `[REDACTED_CREDIT_CARD]`
 
 ---
 

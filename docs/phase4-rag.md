@@ -59,9 +59,11 @@ Dense Vector Candidates                             Sparse Lexical Candidates
 
 ### 2.1 Ingestion Pipeline ([`ingestion.py`](file:///d:/Python_Ai_Project/ChatBots_platform/services/chat-service/src/rag/ingestion.py))
 * **Multi-Format Parsers**: PDF (`pypdf`), Word (`python-docx`), plain text / Markdown.
+* **Pre-Chunking PII Scrubbing**: Integrated [`PIIScrubber`](file:///d:/Python_Ai_Project/ChatBots_platform/shared/security/pii_scrubber.py) strips sensitive enterprise data (emails, phones, API keys, bearer tokens, SSNs) before chunking, ensuring raw PII is never sent to embeddings or vector storage.
 * **Chunking**: Dynamic sliding-window chunker (500 tokens, 50 overlap) with unicode sanitization.
-* **Dual Indexing**:
-  1. **Dense Vector Embeddings:** Upserted to Qdrant with payload metadata and strict multi-tenant isolation (`tenant_id`).
+* **Sparse Vector Generation**: Computes normalized term frequencies for each chunk via `compute_sparse_vector()`.
+* **Triple Indexing**:
+  1. **Dense Vector Embeddings:** Upserted to Qdrant with payload metadata, storing both `dense_vector` and `sparse_vector` alongside strict multi-tenant isolation (`tenant_id`).
   2. **Sparse BM25 Index:** Ingested into `lexical_corpus_index` (`rank-bm25`).
   3. **Knowledge Graph Triples:** Extracted via regex patterns and entity recognizers into tenant-isolated NetworkX multigraphs.
 
@@ -82,18 +84,29 @@ $$RRF(d) = \frac{w_{\text{dense}}}{k + \text{rank}_{\text{dense}}(d)} + \frac{w_
 * Multi-hop traversal (`ego_graph`, radius=2) discovers cross-document relationships to answer complex enterprise questions that flat vector search cannot answer alone.
 
 ### 2.5 Corrective RAG (CRAG) ([`crag.py`](file:///d:/Python_Ai_Project/ChatBots_platform/services/chat-service/src/rag/crag.py))
-* Evaluates chunk relevance against query intent before prompt construction.
-* **Three-way branching:**
-  1. **CORRECT ($\ge 0.75$):** Directly passes verified high-scoring chunks.
+* **Async Judge Function:** `evaluate_retrieval_confidence(query, chunks)` grades candidate relevance between $0.0$ and $1.0$.
+* **Execution Thresholds & Branching:**
+  1. **CORRECT ($\ge 0.75$):** Directly passes verified high-scoring chunks to LLM generation without latency penalty.
   2. **AMBIGUOUS ($0.40 - 0.74$):** Strips conversational filler, reformulates search terms, triggers secondary hybrid search, and merges deduplicated context.
-  3. **INCORRECT ($< 0.40$):** Employs explicit anti-hallucination guardrail notice and fallback.
+  3. **INCORRECT ($< 0.40$):** Employs explicit anti-hallucination guardrail notice and external web search fallback.
 
 ---
 
 ## 3. Verification & Benchmark Tests
 
-All features are tested via `tests/test_agentic_mesh.py`:
-- Entity and semantic triple mining: **PASSED**
-- Hybrid RRF scoring & rank blending: **PASSED**
-- Cross-encoder reranker inference: **PASSED**
-- CRAG query reformulation and thresholding: **PASSED**
+All features are continuously tested and validated across two suites:
+* **Primary Agentic Mesh Suite:** `python tests/test_agentic_mesh.py`
+  - Entity and semantic triple mining: **PASSED**
+  - Hybrid RRF scoring & rank blending: **PASSED**
+  - Cross-encoder reranker inference: **PASSED**
+  - CRAG query reformulation and thresholding: **PASSED**
+  - Multi-agent collaborative intent routing: **PASSED**
+  - Real-time token attribution and budget guards: **PASSED**
+
+* **Production Hardening Suite:** `python tests/test_final_upgrades.py`
+  - Sparse vector generation & Qdrant payload persistence: **PASSED**
+  - Reciprocal Rank Fusion ($k=60$) search: **PASSED**
+  - CRAG evaluator judge & execution thresholds ($\ge 0.75$ vs $< 0.75$): **PASSED**
+  - Ingestion PII scrubbing (Emails, Phones, API keys, SSNs): **PASSED**
+  - Live Prometheus metrics (`/metrics`) per-tenant tracking: **PASSED**
+  - SSE Circuit Breaker 503 failover provider switching: **PASSED**
