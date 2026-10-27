@@ -6,7 +6,7 @@ from collections import defaultdict
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 
 from shared.kafka.consumer import KafkaEventConsumer
-from shared.events.chat import TOPIC_RESPONSE_COMPLETED, TOPIC_TOOL_EXECUTED
+from shared.events.chat import TOPIC_RESPONSE_COMPLETED, TOPIC_TOOL_EXECUTED, TOPIC_BUDGET_ALERT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("analytics-consumer")
@@ -40,13 +40,24 @@ def handle_tool_executed(event: dict):
     logger.info(f"[ANALYTICS] tool={tool} success={success}")
 
 
+def handle_budget_alert(event: dict):
+    data = event.get("data", {})
+    tenant = event.get("tenant_id", "default")
+    level = data.get("alert_level", "warning")
+    logger.warning(
+        f"[ANALYTICS BUDGET GUARD] Tenant '{tenant}' triggered {level.upper()} alert! "
+        f"Used ${data.get('used_cost_usd', 0.0):.4f} of ${data.get('max_cost_usd', 0.0):.2f}"
+    )
+
+
 def main():
     consumer = KafkaEventConsumer(
-        topics=[TOPIC_RESPONSE_COMPLETED, TOPIC_TOOL_EXECUTED],
+        topics=[TOPIC_RESPONSE_COMPLETED, TOPIC_TOOL_EXECUTED, TOPIC_BUDGET_ALERT],
         group_id="analytics-group",
     )
     consumer.register(TOPIC_RESPONSE_COMPLETED, handle_response_completed)
     consumer.register(TOPIC_TOOL_EXECUTED,       handle_tool_executed)
+    consumer.register(TOPIC_BUDGET_ALERT,        handle_budget_alert)
 
     logger.info("Analytics Service consumer starting...")
     consumer.start()

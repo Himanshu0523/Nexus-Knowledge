@@ -51,5 +51,8 @@ class ChatResponse(BaseModel):
     message_id: str
     response: str
     sources: Optional[List[Dict[str, Any]]] = None
-    usage: Optional[Dict[str, int]] = None
+    usage: Optional[Dict[str, Any]] = None
     model: Optional[str] = "qwen"
+    graph_rag: Optional[Dict[str, Any]] = None
+    crag: Optional[Dict[str, Any]] = None
+    analytics_data: Optional[Dict[str, Any]] = None

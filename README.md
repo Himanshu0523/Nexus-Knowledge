@@ -21,9 +21,8 @@ Nexus Knowledge combines Retrieval-Augmented Generation (RAG), autonomous tool e
 
 ---
 
-## 📋 Table of Contents
-
 - [Architecture](#️-architecture)
+- [Agentic Self-Healing Enterprise Mesh](#-agentic-self-healing-enterprise-mesh)
 - [Quick Start](#-quick-start)
 - [Configuration](#️-configuration)
 - [Project Structure](#️-project-structure)
@@ -121,6 +120,74 @@ graph TD
 | `chat.events` | `KAFKA_TOPIC_CHAT_EVENTS` | Chat Service | Audit Service, Moderation Service |
 | `audit.events` | `KAFKA_TOPIC_AUDIT_EVENTS` | Chat Service | Audit Service |
 | `analytics.events` | `KAFKA_TOPIC_ANALYTICS_EVENTS` | Chat Service | Analytics Service |
+| `analytics.budget.alert` | — | Chat Service | Analytics Service |
+
+---
+
+## 🧠 Agentic Self-Healing Enterprise Mesh
+
+Nexus Knowledge transitions beyond basic RAG pipelines (`User Query -> Retrieve Chunks -> LLM -> Answer`) into an **Agentic, Self-Healing Enterprise Mesh** designed to outperform typical production AI architectures.
+
+```
+                              [ User Query / SSE Stream ]
+                                           │
+                                           ▼
+                             [ Enterprise Mesh Router ]
+                                           │
+          ┌────────────────────────────────┼────────────────────────────────┐
+          ▼                                ▼                                ▼
+[Security/Compliance Agent]      [SQL/Analytics Agent]          [Graph RAG Synthesis Agent]
+(Zero-Trust PII & Data Bleed)   (PostgreSQL Telemetry & Spend) (Hybrid RRF + Multi-Hop Graph)
+                                                                            │
+                                                       ┌────────────────────┴──────────────────┐
+                                                       ▼                                       ▼
+                                              [ Qdrant Dense Vector ]                 [ BM25 Sparse Lexical ]
+                                                       │                                       │
+                                                       └───────────────────┬───────────────────┘
+                                                                           ▼
+                                                             [ Reciprocal Rank Fusion (RRF) ]
+                                                                           │
+                                                                           ▼
+                                                             [ Cross-Encoder Neural Rerank ]
+                                                                           │
+                                                                           ▼
+                                                             [ Hierarchical Graph Traversal ]
+                                                             (Multi-hop entity semantic web)
+                                                                           │
+                                                                           ▼
+                                                             [ Corrective RAG (CRAG) Loop ]
+                                                             ├─► High Conf: Pass through
+                                                             ├─► Ambiguous: Query Reformulation
+                                                             └─► Low Conf: Anti-Hallucination Safe Fallback
+```
+
+### Key Architectural Capabilities
+
+1. **Hierarchical Graph RAG ([`graph_rag.py`](./services/chat-service/src/rag/graph_rag.py))**  
+   Extracts entities (concepts, protocols, technical acronyms) and typed relationships (`DEPENDS_ON`, `REGULATES`, `PROVIDES`, `CONTAINS`) into tenant-isolated **NetworkX** knowledge graphs. Traverses multi-hop ego-graphs to resolve cross-document semantic dependencies that flat vector search misses.
+
+2. **Hybrid Search with Reciprocal Rank Fusion (RRF) ([`retriever.py`](./services/chat-service/src/rag/retriever.py))**  
+   Fuses Qdrant dense vector embeddings with BM25Okapi sparse lexical scoring ($k=60$). Prevents vector search blindness on exact error codes (`ERR_AUTH_GATEWAY_401`), technical IDs, and acronyms while retaining semantic discovery.
+
+3. **Cross-Encoder Neural Reranking ([`reranker.py`](./services/chat-service/src/rag/reranker.py))**  
+   Passes top-20 retrieved candidates through `cross-encoder/ms-marco-MiniLM-L-6-v2` cross-attention transformer, outputting sigmoid-normalized $[0.0, 1.0]$ confidence scores to prune context noise.
+
+4. **Corrective RAG (CRAG) & Self-Correction Feedback Loops ([`crag.py`](./services/chat-service/src/rag/crag.py))**  
+   Automated evaluator grades retrieved chunks:
+   - **`CORRECT` ($\ge 0.75$):** Directly passes verified high-scoring context.
+   - **`AMBIGUOUS` ($0.40 - 0.74$):** Automatically strips conversational filler, reformulates query into dense search terms, and triggers a secondary retrieval pass.
+   - **`INCORRECT` ($< 0.40$):** Flags insufficient ground truth and triggers explicit anti-hallucination guardrail fallbacks.
+
+5. **Multi-Agent Collaborative Routing ([`mesh_router.py`](./services/chat-service/src/agent_runtime/mesh_router.py))**  
+   Routes incoming tasks across specialized autonomous micro-agents:
+   - **`SecurityComplianceAgent`:** Real-time PII sanitization and cross-tenant data bleed defense.
+   - **`SQLAnalyticsAgent`:** Structured PostgreSQL metrics, token consumption, and graph topology queries.
+   - **`GraphRAGSynthesisAgent`:** Hybrid RRF, Graph RAG traversal, and CRAG self-correction.
+
+6. **Real-Time Token Cost Attribution & Budget Guards ([`spend_tracker.py`](./shared/governance/spend_tracker.py))**  
+   Enforces proactive **80% Budget Warning Thresholds** and **100% Hard Quotas**, emitting real-time Kafka events to `analytics.budget.alert`.
+
+*See the full deep dive in [`docs/agentic-mesh-architecture.md`](./docs/agentic-mesh-architecture.md).*
 
 ---
 
@@ -471,6 +538,9 @@ Or use the automated deployment script:
 ## 🧪 Running Tests
 
 ```bash
+# Agentic Enterprise Mesh — Graph RAG, Hybrid RRF, Cross-Encoder, CRAG, Multi-Agent Routing, Budget Guards
+python tests/test_agentic_mesh.py
+
 # HA resilience — db routing, sentinel failover, Qdrant cluster HA
 pytest tests/test_ha_resilience.py -v
 

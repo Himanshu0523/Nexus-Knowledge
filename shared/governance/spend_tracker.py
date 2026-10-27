@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from .models import SpendLimitPolicy
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,27 @@ class SpendTracker:
             f"(Cost: ${cost:.6f}, Total Spent: ${record.total_cost_usd:.4f})"
         )
         return cost
+
+    def check_budget_threshold(
+        self, tenant_id: str, policy: SpendLimitPolicy
+    ) -> Optional[str]:
+        """
+        Check if tenant has crossed the 80% proactive warning threshold or 100% hard limit.
+        Returns 'warning' (>= 80%), 'exceeded' (>= 100%), or None.
+        """
+        record = self.get_or_create_record(tenant_id)
+        current_tokens = record.total_input_tokens + record.total_output_tokens
+
+        token_ratio = current_tokens / max(policy.max_tokens_per_period, 1)
+        cost_ratio = record.total_cost_usd / max(policy.max_cost_per_period, 0.001)
+
+        highest_ratio = max(token_ratio, cost_ratio)
+
+        if highest_ratio >= 1.0:
+            return "exceeded"
+        elif highest_ratio >= 0.80:
+            return "warning"
+        return None
 
     def get_usage(self, tenant_id: str) -> Dict[str, Any]:
         """Retrieve current usage metrics for a tenant."""

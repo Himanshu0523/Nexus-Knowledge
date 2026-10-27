@@ -127,7 +127,10 @@ async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
             response=result["response"],
             sources=result.get("sources"),
             usage=result.get("usage"),
-            model=result.get("model", "qwen")
+            model=result.get("model", "qwen"),
+            graph_rag=result.get("graph_rag"),
+            crag=result.get("crag"),
+            analytics_data=result.get("analytics_data")
         )
         
     except Exception as e:

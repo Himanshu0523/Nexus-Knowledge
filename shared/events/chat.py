@@ -8,6 +8,7 @@ TOPIC_RESPONSE_FAILED     = "chat.response.failed"
 TOPIC_TOOL_EXECUTED       = "chat.tool.executed"
 TOPIC_DOCUMENT_INGESTED   = "document.ingested"
 TOPIC_DOCUMENT_DELETED    = "document.deleted"
+TOPIC_BUDGET_ALERT        = "analytics.budget.alert"
 
 ALL_TOPICS = [
     TOPIC_MESSAGE_CREATED,
@@ -16,6 +17,7 @@ ALL_TOPICS = [
     TOPIC_TOOL_EXECUTED,
     TOPIC_DOCUMENT_INGESTED,
     TOPIC_DOCUMENT_DELETED,
+    TOPIC_BUDGET_ALERT,
 ]
 
 # ── Factory helpers ───────────────────────────────────────────
@@ -121,5 +123,29 @@ def document_ingested_event(
             "document_id": document_id,
             "filename": filename,
             "chunks": chunks,
+        },
+    )
+
+
+def budget_alert_event(
+    tenant_id: str,
+    alert_level: str,  # "warning" (80%) or "exceeded" (100%)
+    used_tokens: int,
+    max_tokens: int,
+    used_cost_usd: float,
+    max_cost_usd: float,
+    correlation_id: Optional[str] = None,
+) -> EventEnvelope:
+    return EventEnvelope(
+        event_type=TOPIC_BUDGET_ALERT,
+        tenant_id=tenant_id,
+        correlation_id=correlation_id,
+        data={
+            "tenant_id": tenant_id,
+            "alert_level": alert_level,
+            "used_tokens": used_tokens,
+            "max_tokens": max_tokens,
+            "used_cost_usd": used_cost_usd,
+            "max_cost_usd": max_cost_usd,
         },
     )

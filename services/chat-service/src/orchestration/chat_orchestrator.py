@@ -28,12 +28,17 @@ from shared.governance import governance_engine
 try:
     from kafka.producer import kafka_producer
     from shared.events.chat import (
-        message_created_event, response_completed_event, response_failed_event
+        message_created_event, response_completed_event, response_failed_event, budget_alert_event
     )
     _KAFKA_EVENTS_AVAILABLE = True
 except ImportError:
     kafka_producer = None
     _KAFKA_EVENTS_AVAILABLE = False
+
+try:
+    from agent_runtime.mesh_router import EnterpriseMeshRouter, AgentDomain
+except ImportError:
+    from src.agent_runtime.mesh_router import EnterpriseMeshRouter, AgentDomain
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +54,7 @@ class ChatOrchestrator:
         self.rag_context_builder = RAGContextBuilder()
         self.retriever = Retriever()
         self.stream_manager = StreamManager()
+        self.mesh_router = EnterpriseMeshRouter(db_session)
         self.max_agent_iterations = 5
     
     async def process_message(self, request: Dict[str, Any], tenant_id: str = "default") -> Dict[str, Any]:
@@ -96,6 +102,22 @@ class ChatOrchestrator:
             }
 
         sanitized_message = prompt_guard.sanitize(effective_message)
+
+        # ── Multi-Agent Collaborative Mesh Intent Routing ──
+        domain = self.mesh_router.classify_intent(sanitized_message)
+        if domain == AgentDomain.SQL_ANALYTICS:
+            analytics_res = await self.mesh_router.sql_agent.execute_metrics_query(sanitized_message, tenant_id)
+            return {
+                "conversation_id": conversation_id,
+                "message_id": f"msg_{uuid.uuid4().hex[:10]}",
+                "response": analytics_res.response,
+                "sources": [],
+                "usage": {"input_tokens": len(sanitized_message) // 4, "output_tokens": len(analytics_res.response) // 4, "cost_usd": 0.0},
+                "model": "sql-analytics-agent",
+                "analytics_data": analytics_res.data,
+                "rag_used": False
+            }
+
         use_rag = bool(knowledge_base_id) or self._should_use_rag(sanitized_message)
 
         conversation_context = self.context_builder.build_context(
@@ -118,6 +140,8 @@ class ChatOrchestrator:
             llm_response = await self.llm_service.generate_response(final_messages)
             llm_response["sources"] = rag_context.get("sources", [])
             llm_response["rag_used"] = True
+            llm_response["graph_rag"] = rag_context.get("graph_rag", {})
+            llm_response["crag"] = rag_context.get("crag")
         else:
             llm_response = await self.llm_service.generate_response(conversation_context)
             llm_response["sources"] = []
@@ -213,6 +237,31 @@ class ChatOrchestrator:
             key=conversation_id,
         )
 
+        # 3. analytics.budget.alert (if threshold reached)
+        try:
+            from shared.governance.models import SpendLimitPolicy
+            policy = SpendLimitPolicy()
+            alert_level = governance_engine.spend_tracker.check_budget_threshold(tenant_id, policy)
+            if alert_level:
+                usage_rec = governance_engine.get_tenant_usage(tenant_id)
+                evt_alert = budget_alert_event(
+                    tenant_id=tenant_id,
+                    alert_level=alert_level,
+                    used_tokens=usage_rec.get("total_tokens", 0),
+                    max_tokens=policy.max_tokens_per_period,
+                    used_cost_usd=usage_rec.get("total_cost_usd", 0.0),
+                    max_cost_usd=policy.max_cost_per_period,
+                    correlation_id=correlation_id,
+                )
+                kafka_producer.publish(
+                    topic=evt_alert.event_type,
+                    event_dict=evt_alert.to_dict(),
+                    key=tenant_id,
+                )
+                logger.warning(f"[Governance Kafka] Published budget alert ({alert_level}) for tenant '{tenant_id}'")
+        except Exception as e:
+            logger.warning(f"[Governance Kafka] Error emitting budget alert: {e}")
+
     async def process_message_stream(
         self,
         request: Dict[str, Any],
@@ -260,7 +309,7 @@ class ChatOrchestrator:
             if self._should_use_rag(effective_message) or knowledge_base_id:
                 yield StatusEvent(
                     status=StreamStatus.RETRIEVING,
-                    message="Retrieving relevant context..."
+                    message="Traversing Knowledge Graph & Hybrid RRF..."
                 )
                 
                 rag_context = await self.rag_context_builder.build_context(
@@ -268,9 +317,23 @@ class ChatOrchestrator:
                     tenant_id,
                     knowledge_base_id
                 )
-                
+
+                # CRAG self-correction streaming notice
+                crag_data = rag_context.get("crag") or {}
+                if crag_data.get("reformulated_query"):
+                    yield StatusEvent(
+                        status=StreamStatus.PROCESSING,
+                        message=f"CRAG Self-Correction: Query reformulated to '{crag_data['reformulated_query']}'"
+                    )
+
                 for source in rag_context.get("sources", []):
                     yield SourceEvent(**source)
+
+                if rag_context.get("graph_rag") or rag_context.get("crag"):
+                    yield MetadataEvent(metadata={
+                        "graph_rag": rag_context.get("graph_rag"),
+                        "crag": rag_context.get("crag")
+                    })
                 
                 messages = self._combine_contexts(messages, rag_context.get("messages", []))
             

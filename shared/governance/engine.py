@@ -270,7 +270,9 @@ class GovernanceEngine:
             return True
         if policy.allow_all_public and "public" in kb_id.lower():
             return True
-        return False
+    def get_tenant_usage(self, tenant_id: str) -> Dict[str, Any]:
+        """Retrieve current usage and spend metrics for a tenant."""
+        return self.spend_tracker.get_usage(tenant_id)
 
 
 # Global singleton governance engine
