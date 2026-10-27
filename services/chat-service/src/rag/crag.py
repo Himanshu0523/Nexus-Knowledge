@@ -57,7 +57,7 @@ class CorrectiveRAGEvaluator:
 
     def __init__(
         self,
-        correct_threshold: float = 0.75,
+        correct_threshold: float = 0.70,
         incorrect_threshold: float = 0.40,
         min_chunk_relevance: float = 0.35
     ):
@@ -147,6 +147,27 @@ class CorrectiveRAGEvaluator:
         logger.info(f"[CRAG] Reformulated query: '{query}' -> '{expanded_query}'")
         return expanded_query
 
+    async def _try_external_web_search(self, query: str) -> Optional[str]:
+        """Attempt external search fallback when relevance drops below threshold."""
+        try:
+            import os
+            import httpx
+            tavily_key = os.getenv("TAVILY_API_KEY")
+            if tavily_key:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.post(
+                        "https://api.tavily.com/search",
+                        json={"query": query, "api_key": tavily_key, "max_results": 2}
+                    )
+                    if resp.status_code == 200:
+                        results = resp.json().get("results", [])
+                        snippets = [r.get("content", "") for r in results if r.get("content")]
+                        if snippets:
+                            return "\n".join(snippets)
+        except Exception as e:
+            logger.debug(f"[CRAG] External web search fallback skipped: {e}")
+        return None
+
     async def execute_crag_loop(
         self,
         query: str,
@@ -200,10 +221,17 @@ class CorrectiveRAGEvaluator:
         # ── State 2: INCORRECT -> External Fallback & Anti-Hallucination Guard ──
         if action == CRAGAction.INCORRECT:
             fallback_used = True
-            system_advisory = (
-                "[CRAG Guardrail Alert] The connected enterprise knowledge base contains insufficient "
-                "or low-confidence ground truth for this query. Responding with safe fallback."
-            )
+            external_info = await self._try_external_web_search(query)
+            if external_info:
+                system_advisory = (
+                    f"[CRAG External Web Search Fallback] Enterprise KB relevance score was below {self.correct_threshold:.2f}. "
+                    f"External grounding retrieved:\n{external_info}"
+                )
+            else:
+                system_advisory = (
+                    f"[CRAG Guardrail Alert] Enterprise knowledge base relevance score ({confidence:.2f}) is below "
+                    f"the required threshold ({self.correct_threshold:.2f}). Please clarify your question or specify documents."
+                )
 
         # Build formatted source citations
         sources = []
