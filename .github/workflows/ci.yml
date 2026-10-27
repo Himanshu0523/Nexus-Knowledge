@@ -52,8 +52,8 @@ jobs:
 
       - name: Build Docker Images
         run: |
-          docker build -t chatbot/api-gateway:${{ github.sha }} -f api-gateway/Dockerfile api-gateway
-          docker build -t chatbot/chat-service:${{ github.sha }} -f services/chat-service/Dockerfile services/chat-service
+          docker build -t chatbot/api-gateway:${{ github.sha }} -f api-gateway/Dockerfile .
+          docker build -t chatbot/chat-service:${{ github.sha }} -f services/chat-service/Dockerfile .
           docker build -t chatbot/audit-service:${{ github.sha }} -f services/audit-service/Dockerfile .
           docker build -t chatbot/analytics-service:${{ github.sha }} -f services/analytics-service/Dockerfile .
           docker build -t chatbot/moderation-service:${{ github.sha }} -f services/moderation-service/Dockerfile .

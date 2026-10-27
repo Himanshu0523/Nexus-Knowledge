@@ -52,8 +52,8 @@ services:
 
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -69,8 +69,8 @@ services:
 
   chat-service:
     build:
-      context: ./services/chat-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/chat-service/Dockerfile
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-chatbot}:${POSTGRES_PASSWORD:-chatbot_password}@postgres:5432/${POSTGRES_DB:-chatbot_db}
       - REDIS_HOST=valkey
